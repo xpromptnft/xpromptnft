@@ -1,632 +1,344 @@
-import React, { useContext, useEffect, useState } from 'react'
-import {
-  faArrowLeft,
-  faCircleExclamation,
-  faRefresh,
-  faRectangleList,
-  faUserGroup,
-  faTableCells,
-} from '@fortawesome/free-solid-svg-icons'
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { paths } from '@nftearth/reservoir-sdk'
-import {
-  TokenMedia,
-  useAttributes,
-  useCollections,
-  useDynamicTokens,
-  useTokenOpenseaBanned,
-  useUserTokens,
-} from '@nftearth/reservoir-kit-ui'
-import Layout from 'components/Layout'
-import {
-  Flex,
-  Text,
-  Button,
-  Tooltip,
-  Anchor,
-  Grid,
-  Box,
-  CollapsibleContent,
-} from 'components/primitives'
-import { TabsList, TabsTrigger, TabsContent } from 'components/primitives/Tab'
-import * as Tabs from '@radix-ui/react-tabs'
-import * as Collapsible from '@radix-ui/react-collapsible'
-import AttributeCard from 'components/token/AttributeCard'
-import { PriceData } from 'components/token/PriceData'
-import RarityRank from 'components/token/RarityRank'
-import { TokenActions } from 'components/token/TokenActions'
-import {
-  GetStaticProps,
-  GetStaticPaths,
-  InferGetStaticPropsType,
-  NextPage,
-} from 'next'
-import Link from 'next/link'
-import { jsNumberForAddress } from 'react-jazzicon'
-import Jazzicon from 'react-jazzicon/dist/Jazzicon'
-import fetcher from 'utils/fetcher'
-import { useAccount } from 'wagmi'
-import { TokenInfo } from 'components/token/TokenInfo'
-import { useMediaQuery } from 'react-responsive'
+import React from 'react'
 import { useRouter } from 'next/router'
-import Head from 'next/head'
-import { ToastContext } from 'context/ToastContextProvider'
-import { NORMALIZE_ROYALTIES } from 'pages/_app'
-import { useENSResolver, useMarketplaceChain, useMounted } from 'hooks'
-import { spin } from 'components/common/LoadingSpinner'
-import FullscreenMedia from 'components/token/FullscreenMedia'
-import { OpenSeaVerified } from 'components/common/OpenSeaVerified'
-import { OwnersModal } from 'components/token/OwnersModal'
-import { TokenActivityTable } from 'components/token/TokenActivityTable'
-import { TokenOffersTable } from 'components/token/TokenOffersTable'
-import { TokenListingsTable } from 'components/token/TokenListingsTable'
-import { formatNumber } from 'utils/numbers'
-import supportedChains, { DefaultChain } from 'utils/chains'
-import { NAVBAR_HEIGHT } from 'components/navbar'
-import { useTheme } from 'next-themes'
+import LaunchHeroSection from 'components/launch/LaunchHeroSection'
+// import CardImage from "../../public/temp.png"
+import Image from 'next/image'
+import * as Avatar from '@radix-ui/react-avatar'
+import * as Tooltip from '@radix-ui/react-tooltip'
+import Layout from 'components/Layout'
+import * as Tabs from '@radix-ui/react-tabs'
 
-type Props = InferGetStaticPropsType<typeof getStaticProps>
-
-const TokenPage: NextPage<Props> = ({ id, collectionId, ssr }) => {
-  const { theme } = useTheme()
+import '@radix-ui/colors/blackA.css'
+import '@radix-ui/colors/green.css'
+import '@radix-ui/colors/mauve.css'
+import '@radix-ui/colors/violet.css'
+export default function getRoute() {
+  // Calling useRouter() hook
   const router = useRouter()
-  const { addToast } = useContext(ToastContext)
-  const account = useAccount()
-  const isMounted = useMounted()
-  const isSmallDevice = useMediaQuery({ maxWidth: 900 }) && isMounted
-  const [tabValue, setTabValue] = useState('description')
-  const [isRefreshing, setIsRefreshing] = useState(false)
-  const { id: chainId, proxyApi } = useMarketplaceChain()
-  const contract = collectionId ? collectionId?.split(':')[0] : undefined
-  const { data: collections } = useCollections(
-    {
-      contract: contract,
-    },
-    {
-      fallbackData: [ssr.collection],
-    },
-    chainId
-  )
-  const collection = collections && collections[0] ? collections[0] : null
 
-  const { data: tokens, mutate } = useDynamicTokens(
-    {
-      tokens: [`${contract}:${id}`],
-      includeAttributes: true,
-      includeTopBid: true,
-      includeOwnerCount: true,
-      includeItemCount: true,
-    },
-    {
-      isPaused() {
-        return !contract || !id
-      },
-      fallbackData: ssr.tokens ? [ssr.tokens] : undefined,
-    },
-    chainId
-  )
-  const flagged = useTokenOpenseaBanned(collectionId, id)
-  const token = tokens && tokens[0] ? tokens[0] : undefined
-  const checkUserOwnership = token?.token?.kind === 'erc1155'
-
-  const { data: userTokens } = useUserTokens(
-    checkUserOwnership ? account.address : undefined,
-    {
-      tokens: [`${contract}:${id}`],
-    }
-  )
-
-  const attributesData = useAttributes(id, chainId)
-
-  const isOwner =
-    userTokens &&
-    userTokens[0] &&
-    userTokens[0].ownership?.tokenCount &&
-    +userTokens[0].ownership.tokenCount > 0
-      ? true
-      : token?.token?.owner?.toLowerCase() === account?.address?.toLowerCase()
-  const owner = isOwner ? account?.address : token?.token?.owner
-  const { displayName: ownerFormatted } = useENSResolver(token?.token?.owner)
-
-  const tokenName = `${token?.token?.name || `#${token?.token?.tokenId}`}`
-
-  const hasAttributes =
-    token?.token?.attributes && token?.token?.attributes.length > 0
-
-  useEffect(() => {
-    isMounted && isSmallDevice && hasAttributes
-      ? setTabValue('attributes')
-      : setTabValue('description')
-  }, [isSmallDevice])
-
-  const pageTitle = token?.token?.name
-    ? token.token.name
-    : `${token?.token?.tokenId} - ${token?.token?.collection?.name}`
-
+  console.log(router.query)
   return (
     <Layout>
-      <Head>
-        <title>{pageTitle}</title>
-        <meta name="description" content={collection?.description as string} />
-        <meta name="twitter:title" content={pageTitle} />
-        <meta
-          name="twitter:image"
-          content={token?.token?.image || collection?.banner}
-        />
-        <meta name="og:title" content={pageTitle} />
-        <meta
-          property="og:image"
-          content={token?.token?.image || collection?.banner}
-        />
-        <a href="#">bcbcbcbcbcbcb</a>
-      </Head>
-      <Flex
-        justify="center"
-        css={{
-          maxWidth: 1175,
-          mt: 10,
-          pb: 30,
-          marginLeft: 'auto',
-          marginRight: 'auto',
-          px: '$1',
-          gap: 20,
-          flexDirection: 'column',
-          alignItems: 'center',
-          '@md': {
-            mt: 48,
-            px: '$3',
-            flexDirection: 'row',
-            gap: 40,
-            alignItems: 'flex-start',
-          },
-          '@lg': {
-            gap: 80,
-          },
-        }}
-      >
-        <Flex
-          direction="column"
-          css={{
-            maxWidth: '100%',
-            flex: 1,
-            width: '100%',
-            '@md': { maxWidth: 445 },
-            position: 'relative',
-            '@sm': {
-              '>button': {
-                height: 0,
-                opacity: 0,
-                transition: 'opacity .3s',
-              },
-            },
-            ':hover >button': {
-              opacity: 1,
-              transition: 'opacity .3s',
-            },
-          }}
-        >
-          <Box
-            css={{
-              backgroundColor: '$gray3',
-              borderRadius: '$lg',
-              '@sm': {
-                button: {
-                  height: 0,
-                  opacity: 0,
-                  transition: 'opacity .3s',
-                },
-              },
-              ':hover button': {
-                opacity: 1,
-                transition: 'opacity .3s',
-              },
+      {/* <LaunchHeroSection /> */}
+      <div style={{ background: 'white', height: '90vh', display: 'flex' }}>
+        <img
+          src="/temp.png"
+          alt="generated image"
+          className="rounded-xl "
+          style={{ width: '60vw', padding: '10px', borderRadius: '50px' }}
+        ></img>
+        <div style={{ width: '40vw', color: 'black', padding: '20px' }}>
+          <h1 style={{ fontSize: '50px', fontWeight: '500' }}>Yoda</h1>
+          <div
+            style={{
+              fontSize: '25px',
+              fontWeight: '500',
+              paddingTop: '20px',
+              paddingBottom: '20px',
             }}
           >
-            <TokenMedia
-              token={token?.token}
-              videoOptions={{ autoPlay: true, muted: true }}
-              style={{
-                width: '100%',
-                height: 'auto',
-                minHeight: isMounted && isSmallDevice ? 300 : 445,
-                borderRadius: '$lg',
-                overflow: 'hidden',
-              }}
-              onRefreshToken={() => {
-                mutate?.()
-                addToast?.({
-                  title: 'Refresh token',
-                  description: 'Request to refresh this token was accepted.',
-                })
-              }}
-            />
-            <FullscreenMedia token={token} />
-          </Box>
-          {hasAttributes && !isSmallDevice && (
-            <Grid
-              css={{
-                maxWidth: '100%',
-                width: '100%',
-                maxHeight: 600,
-                overflowY: 'scroll',
-                gridTemplateColumns: '1fr 1fr',
-                gap: '$3',
-                mt: 24,
-              }}
+            Balance : 0.01
+          </div>
+          <div style={{ fontSize: '20px', fontWeight: '500' }}>
+            Abstract Art{' '}
+          </div>
+          <div
+            style={{
+              fontSize: '20px',
+              fontWeight: '500',
+              borderRadius: '20px',
+            }}
+          >
+            Ganga Art
+          </div>
+          <button
+            style={{
+              fontSize: '20px',
+              fontWeight: '500',
+              width: '40%',
+              height: '40px',
+              backgroundColor: '#1773eb',
+              color: '#fff',
+              borderRadius: '30px',
+              marginTop: '20px',
+            }}
+          >
+            {' '}
+            Buy
+          </button>
+          <style jsx global>
+            {`
+              .TabsRoot {
+                display: flex;
+                flex-direction: column;
+                width: 300px;
+                box-shadow: 0 2px 10px var(--blackA4);
+              }
+
+              .TabsList {
+                flex-shrink: 0;
+                display: flex;
+                border-bottom: 1px solid var(--mauve6);
+              }
+
+              .TabsTrigger {
+                font-family: inherit;
+                background-color: white;
+                padding: 0 20px;
+                height: 45px;
+                flex: 1;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 15px;
+                line-height: 1;
+                color: var(--mauve11);
+                user-select: none;
+              }
+              .TabsTrigger:first-child {
+                border-top-left-radius: 6px;
+              }
+              .TabsTrigger:last-child {
+                border-top-right-radius: 6px;
+              }
+              .TabsTrigger:hover {
+                color: var(--violet11);
+              }
+              .TabsTrigger[data-state='active'] {
+                color: var(--violet11);
+                box-shadow: inset 0 -1px 0 0 currentColor,
+                  0 1px 0 0 currentColor;
+              }
+              .TabsTrigger:focus {
+                position: relative;
+                box-shadow: 0 0 0 2px black;
+              }
+
+              .TabsContent {
+                flex-grow: 1;
+                padding: 20px;
+                background-color: white;
+                border-bottom-left-radius: 6px;
+                border-bottom-right-radius: 6px;
+                outline: none;
+              }
+              .TabsContent:focus {
+                box-shadow: 0 0 0 2px black;
+              }
+
+              .Text {
+                margin-top: 0;
+                margin-bottom: 20px;
+                color: var(--mauve11);
+                font-size: 15px;
+                line-height: 1.5;
+              }
+
+              .Fieldset {
+                margin-bottom: 15px;
+                width: 100%;
+                display: flex;
+                flex-direction: column;
+                justify-content: flex-start;
+              }
+
+              .Label {
+                font-size: 13px;
+                line-height: 1;
+                margin-bottom: 10px;
+                color: var(--violet12);
+                display: block;
+              }
+
+              .Input {
+                flex: 1 0 auto;
+                border-radius: 4px;
+                padding: 0 10px;
+                font-size: 15px;
+                line-height: 1;
+                color: var(--violet11);
+                box-shadow: 0 0 0 1px var(--violet7);
+                height: 35px;
+              }
+              .Input:focus {
+                box-shadow: 0 0 0 2px var(--violet8);
+              }
+
+              .Button {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                border-radius: 4px;
+                padding: 0 15px;
+                font-size: 15px;
+                line-height: 1;
+                font-weight: 500;
+                height: 35px;
+              }
+              .Button.green {
+                background-color: var(--green4);
+                color: var(--green11);
+              }
+              .Button.green:hover {
+                background-color: var(--green5);
+              }
+              .Button.green:focus {
+                box-shadow: 0 0 0 2px var(--green7);
+              }
+            `}
+          </style>
+          <Tabs.Root style={{ width: '50%' }} defaultValue="tab1">
+            <Tabs.List
+              style={{ display: 'flex', justifyContent: 'space-between' }}
+              aria-label="Manage your account"
             >
-              {token?.token?.attributes?.map((attribute) => (
-                <AttributeCard
-                  key={`${attribute.key}-${attribute.value}`}
-                  attribute={attribute}
-                  collectionTokenCount={collection?.tokenCount || 0}
-                  collectionId={collection?.id}
+              <Tabs.Trigger className="TabsTrigger" value="tab1">
+                OWNER
+              </Tabs.Trigger>
+              <Tabs.Trigger className="TabsTrigger" value="tab2">
+                HISTORY
+              </Tabs.Trigger>
+              <Tabs.Trigger className="TabsTrigger" value="tab3">
+                INFO
+              </Tabs.Trigger>
+            </Tabs.List>
+            <Tabs.Content className="TabsContent" value="tab1">
+              <div style={{ display: 'flex' }}>
+                <img
+                  src="/temp.png"
+                  alt="profile"
+                  style={{
+                    height: '70px',
+                    width: '70px',
+                    borderRadius: '70px',
+                  }}
                 />
-              ))}
-            </Grid>
-          )}
-          {!isSmallDevice && (
-            <Collapsible.Root defaultOpen={true} style={{ width: '100%' }}>
-              <Collapsible.Trigger asChild>
-                <Flex
-                  direction="row"
-                  align="center"
-                  css={{
-                    px: '$4',
-                    py: '$3',
-                    backgroundColor:
-                      theme === 'light' ? '$primary11' : '$primary6',
-                    mt: 30,
-                    cursor: 'pointer',
+                <div style={{ color: 'gray' }}>
+                  Creator
+                  <div>Yoda</div>
+                </div>
+              </div>
+            </Tabs.Content>
+            <Tabs.Content className="TabsContent" value="tab2">
+              <div style={{ display: 'flex' }}>
+                <img
+                  src="/temp.png"
+                  alt="profile"
+                  style={{
+                    marginRight: '10px',
+                    height: '70px',
+                    width: '70px',
+                    borderRadius: '70px',
                   }}
+                />
+                <div>
+                  Yoda
+                  <div style={{ color: 'gray' }}>The NFT was mineted</div>
+                  <div style={{ fontSize: '10px', color: 'gray' }}>
+                    2 days ago
+                  </div>
+                </div>
+              </div>
+            </Tabs.Content>
+            <Tabs.Content className="TabsContent" value="tab3">
+              <div>
+                <div style={{ fontSize: '14px', color: 'gray' }}>NFT Id</div>
+                <div style={{ color: '#1773eb', fontWeight: '500' }}>
+                  277842
+                </div>
+                <div
+                  style={{ fontSize: '14px', color: 'gray', marginTop: '10px' }}
                 >
-                  <FontAwesomeIcon icon={faRectangleList} />
-                  <Text style="h6" css={{ ml: '$4' }}>
-                    Description
-                  </Text>
-                </Flex>
-              </Collapsible.Trigger>
-              <CollapsibleContent
-                css={{
-                  position: 'sticky',
-                  top: 16 + 80,
-                  height: `calc(50vh - ${NAVBAR_HEIGHT}px - 32px)`,
-                  overflow: 'auto',
-                  marginBottom: 16,
-                  borderRadius: '$base',
-                  p: '$2',
-                }}
-              >
-                <Box
-                  css={{
-                    '& > div:first-of-type': {
-                      p: '$4',
-                    },
-                  }}
+                  MINT TRANSACTION
+                </div>
+                <div style={{ color: '#1773eb', fontWeight: '500' }}>
+                  0x3c1ea255...029878afe9
+                </div>
+                <div
+                  style={{ fontSize: '14px', color: 'gray', marginTop: '10px' }}
                 >
-                  {collection && (
-                    <TokenInfo token={token} collection={collection} />
-                  )}
-                </Box>
-              </CollapsibleContent>
-            </Collapsible.Root>
-          )}
-        </Flex>
-        <Flex
-          direction="column"
-          css={{
-            flex: 1,
-            px: '$4',
-            width: '100%',
-            '@md': {
-              px: 0,
-              maxWidth: '60%',
-              overflow: 'hidden',
-            },
+                  CONTRACT ADDRESS
+                </div>
+                <div style={{ color: '#1773eb', fontWeight: '500' }}>
+                  0xF5db...CdAA4b
+                </div>
+              </div>
+            </Tabs.Content>
+          </Tabs.Root>
+        </div>
+      </div>
+      <div style={{ background: 'white', height: '70vh', color: 'black' }}>
+        <p
+          style={{
+            display: 'block',
+            fontSize: '30px',
+            fontWeight: '500',
+            height: '100px',
+            padding: '20px',
           }}
         >
-          <Flex justify="between" align="center" css={{ mb: 20 }}>
-            <Flex align="center" css={{ mr: '$2', gap: '$2' }}>
-              <Link
-                href={`/collection/${router.query.chain}/${collection?.id}`}
-                legacyBehavior={true}
-              >
-                <Anchor
-                  color="primary"
-                  css={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '$2',
-                  }}
-                >
-                  <FontAwesomeIcon icon={faArrowLeft} height={16} />
-                  <Text css={{ color: 'inherit' }} style="subtitle1" ellipsify>
-                    {collection?.name}
-                  </Text>
-                </Anchor>
-              </Link>
-              <OpenSeaVerified
-                openseaVerificationStatus={
-                  collection?.openseaVerificationStatus
-                }
-              />
-            </Flex>
-            <Button
-              onClick={(e) => {
-                if (isRefreshing) {
-                  e.preventDefault()
-                  return
-                }
-                setIsRefreshing(true)
-                fetcher(`${proxyApi}/tokens/refresh/v1`, undefined, {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                  },
-                  body: JSON.stringify({ token: `${contract}:${id}` }),
-                })
-                  .then(({ response }) => {
-                    if (response.status === 200) {
-                      addToast?.({
-                        title: 'Refresh token',
-                        description:
-                          'Request to refresh this token was accepted.',
-                      })
-                    } else {
-                      throw 'Request Failed'
-                    }
-                    setIsRefreshing(false)
-                  })
-                  .catch((e) => {
-                    addToast?.({
-                      title: 'Refresh token failed',
-                      description:
-                        'We have queued this item for an update, check back in a few.',
-                    })
-                    setIsRefreshing(false)
-                    throw e
-                  })
+          More By GangaArt
+        </p>
+        <div
+          style={{
+            display: 'flex',
+            width: '98vw',
+            justifyContent: 'space-evenly',
+            marginLeft: '10px',
+            marginRight: '10px',
+          }}
+        >
+          <div style={{ marginRight: '20px' }}>
+            <img
+              src="/temp.png"
+              alt="profile"
+              style={{
+                height: '90%',
+                width: '100%',
+                borderRadius: '20px',
               }}
-              disabled={isRefreshing}
-              color="gray3"
-              size="xs"
-              css={{ cursor: isRefreshing ? 'not-allowed' : 'pointer' }}
-            >
-              <Box
-                css={{
-                  animation: isRefreshing
-                    ? `${spin} 1s cubic-bezier(0.76, 0.35, 0.2, 0.7) infinite`
-                    : 'none',
-                }}
-              >
-                <FontAwesomeIcon icon={faRefresh} width={16} height={16} />
-              </Box>
-            </Button>
-          </Flex>
-          <Flex align="center" css={{ gap: '$2' }}>
-            <Text style="h4" css={{ wordBreak: 'break-all' }}>
-              {tokenName}
-            </Text>
-            {flagged && (
-              <Tooltip
-                content={
-                  <Text style="body2" as="p">
-                    Not tradeable on OpenSea
-                  </Text>
-                }
-              >
-                <Text css={{ color: '$red10' }}>
-                  <FontAwesomeIcon
-                    icon={faCircleExclamation}
-                    width={16}
-                    height={16}
-                  />
-                </Text>
-              </Tooltip>
-            )}
-          </Flex>
-          {token && (
-            <>
-              {token.token?.kind === 'erc1155' ? (
-                <Flex>
-                  <OwnersModal
-                    token={`${token.token?.collection?.id}:${token.token?.tokenId}`}
-                  >
-                    <Button color="ghost" css={{ mt: '$2', mr: '$6' }}>
-                      <FontAwesomeIcon icon={faUserGroup} size="lg" />
-                      <Text style="subtitle3" color="subtle" css={{ mx: '$2' }}>
-                        {`${formatNumber(token.token?.ownerCount)} owners`}
-                      </Text>
-                    </Button>
-                  </OwnersModal>
-                  <Flex align="center" css={{ mt: '$2' }}>
-                    <FontAwesomeIcon icon={faTableCells} size="lg" />
-                    <Text style="subtitle3" color="subtle" css={{ mx: '$2' }}>
-                      {`${formatNumber(token.token?.itemCount)} items`}
-                    </Text>
-                  </Flex>
-                </Flex>
-              ) : (
-                <Flex align="center" css={{ mt: '$2' }}>
-                  <Text style="subtitle3" color="subtle" css={{ mr: '$2' }}>
-                    Owner
-                  </Text>
-                  <Jazzicon
-                    diameter={16}
-                    seed={jsNumberForAddress(owner || '')}
-                  />
-                  <Link href={`/profile/${owner}`} legacyBehavior={true}>
-                    <Anchor color="primary" weight="normal" css={{ ml: '$1' }}>
-                      {isMounted ? ownerFormatted : ''}
-                    </Anchor>
-                  </Link>
-                </Flex>
-              )}
-              <RarityRank
-                token={token}
-                collection={collection}
-                collectionAttributes={attributesData?.data}
-              />
-              <PriceData token={token} />
-              {isMounted && (
-                <TokenActions
-                  token={token}
-                  isOwner={isOwner}
-                  mutate={mutate}
-                  account={account}
-                />
-              )}
-              {isSmallDevice && (
-                <Tabs.Root
-                  value={tabValue}
-                  onValueChange={(value) => setTabValue(value)}
-                >
-                  <TabsList>
-                    <TabsTrigger value="description">Description</TabsTrigger>
-                    {isMounted && hasAttributes && (
-                      <TabsTrigger value="attributes">Attributes</TabsTrigger>
-                    )}
-                  </TabsList>
-                  <TabsContent value="description">
-                    {collection && (
-                      <TokenInfo token={token} collection={collection} />
-                    )}
-                  </TabsContent>
-                  <TabsContent value="attributes">
-                    {token?.token?.attributes && (
-                      <Grid
-                        css={{
-                          gap: '$3',
-                          mt: 24,
-                          maxHeight: 300,
-                          overflowY: 'auto',
-                          gridTemplateColumns: '1fr',
-                          '@sm': {
-                            gridTemplateColumns: '1fr 1fr',
-                          },
-                        }}
-                      >
-                        {token?.token?.attributes?.map((attribute) => (
-                          <AttributeCard
-                            key={`${attribute.key}-${attribute.value}`}
-                            attribute={attribute}
-                            collectionTokenCount={collection?.tokenCount || 0}
-                            collectionId={collection?.id}
-                          />
-                        ))}
-                      </Grid>
-                    )}
-                  </TabsContent>
-                </Tabs.Root>
-              )}
-              {isMounted && (
-                <TokenListingsTable token={token} account={account} />
-              )}
-              {isMounted && (
-                <TokenOffersTable
-                  token={token}
-                  floor={collection?.floorAsk?.price?.amount?.native}
-                  isOwner={isOwner}
-                  account={account}
-                />
-              )}
-            </>
-          )}
-        </Flex>
-      </Flex>
-      <Flex
-        justify="center"
-        css={{
-          maxWidth: 1175,
-          pb: 20,
-          marginLeft: 'auto',
-          marginRight: 'auto',
-          px: '$1',
-          flexDirection: 'row',
-          alignItems: 'center',
-        }}
-      >
-        <Flex align="start" justify="start" css={{ flex: 1, px: '$3' }}>
-          <TokenActivityTable
-            token={`${collection?.id}:${token?.token?.tokenId}`}
-          />
-        </Flex>
-      </Flex>
+            />
+            <div>a2#1</div>
+          </div>
+
+          <div style={{ marginRight: '20px' }}>
+            <img
+              src="/temp.png"
+              alt="profile"
+              style={{
+                height: '90%',
+                width: '100%',
+                borderRadius: '20px',
+              }}
+            />
+            <div>a2#1</div>
+          </div>
+          <div style={{ marginRight: '20px' }}>
+            <img
+              src="/temp.png"
+              alt="profile"
+              style={{
+                height: '90%',
+                width: '100%',
+                borderRadius: '20px',
+              }}
+            />
+            <div>a2#1</div>
+          </div>
+          <div style={{ marginRight: '20px' }}>
+            <img
+              src="/temp.png"
+              alt="profile"
+              style={{
+                height: '90%',
+                width: '100%',
+                borderRadius: '20px',
+              }}
+            />
+            <div>a2#1</div>
+          </div>
+        </div>
+      </div>
     </Layout>
   )
 }
-
-export const getStaticPaths: GetStaticPaths = async () => {
-  return {
-    paths: [],
-    fallback: 'blocking',
-  }
-}
-
-export const getStaticProps: GetStaticProps<{
-  id?: string
-  collectionId?: string
-  ssr: {
-    collection: paths['/collections/v5']['get']['responses']['200']['schema']
-    tokens: paths['/tokens/v5']['get']['responses']['200']['schema']
-  }
-}> = async ({ params }) => {
-  let collectionId = params?.contract?.toString()
-  const id = params?.id?.toString()
-  const { reservoirBaseUrl, apiKey } =
-    supportedChains.find((chain) => params?.chain === chain.routePrefix) ||
-    DefaultChain
-
-  const contract = collectionId ? collectionId?.split(':')[0] : undefined
-
-  let collectionQuery: paths['/collections/v5']['get']['parameters']['query'] =
-    {
-      contract: contract,
-      includeTopBid: true,
-      normalizeRoyalties: NORMALIZE_ROYALTIES,
-    }
-
-  const headers = {
-    headers: {
-      'x-api-key': apiKey || '',
-    },
-  }
-
-  const collectionsPromise = fetcher(
-    `${reservoirBaseUrl}/collections/v5`,
-    collectionQuery,
-    headers
-  )
-
-  let tokensQuery: paths['/tokens/v5']['get']['parameters']['query'] = {
-    tokens: [`${contract}:${id}`],
-    includeAttributes: true,
-    includeTopBid: true,
-    includeDynamicPricing: true,
-    normalizeRoyalties: NORMALIZE_ROYALTIES,
-  }
-
-  const tokensPromise = fetcher(
-    `${reservoirBaseUrl}/tokens/v5`,
-    tokensQuery,
-    headers
-  )
-  const promises = await Promise.allSettled([
-    collectionsPromise,
-    tokensPromise,
-  ]).catch(() => {})
-  const collection: Props['ssr']['collection'] =
-    promises?.[0].status === 'fulfilled' && promises[0].value.data
-      ? (promises[0].value.data as Props['ssr']['collection'])
-      : {}
-  const tokens: Props['ssr']['tokens'] =
-    promises?.[1].status === 'fulfilled' && promises[1].value.data
-      ? (promises[1].value.data as Props['ssr']['tokens'])
-      : {}
-
-  return {
-    props: { collectionId, id, ssr: { collection, tokens } },
-    revalidate: 20,
-  }
-}
-
-export default TokenPage

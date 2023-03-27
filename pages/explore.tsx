@@ -56,6 +56,7 @@ const ExplorePage: NextPage<Props> = ({ ssr }) => {
   return (
     <Layout>
       <HeroSection />
+      <h1>yo</h1>
       <Box
         css={{
           p: 24,

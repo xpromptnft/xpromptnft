@@ -13,6 +13,8 @@ export interface INFT {
   owner?: string
   tokenAddress?: string
   url?: string
+  tokenID: string
+  price: string
 }
 
 Moralis.start({
@@ -90,7 +92,10 @@ export const getAllNftData = async (address: any, chainID: any) => {
           owner: address,
           tokenAddress: data.tokenAddress['_value'],
           url: `https://opensea.io/assets/ethereum/${data.tokenAddress['_value']}/${data.tokenId}`,
+          tokenID: data.tokenId,
+          price: data.amount,
         })
+        console.log('tokoen id is ========>>>>>', data.tokenId)
       }
     })
     console.log('all nfts are ===========>>>>>>>>>', nfts)
@@ -163,7 +168,8 @@ export function MyNFTcard() {
                       {' '}
                       <b> Description : </b> {item.description}
                     </p>
-                    <p>{item.tokenAddress}</p>
+                    <p>Token ID : {item.tokenID}</p>
+                    <p>Price : {item.price}</p>
                   </div>
                 </Box>
               </div>

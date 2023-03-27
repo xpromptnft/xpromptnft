@@ -43,7 +43,7 @@ import { OPENSEA_ASSET_URL } from 'utils/config'
 import { useCreateImage } from 'hooks/useCreateImage'
 import { orangeA } from '@radix-ui/colors/types/dark/orangeA'
 import { StyledInput } from 'components/primitives/Input'
-
+import Link from 'next/link'
 interface Props {
   imageUrl: string
   text: string | undefined
@@ -385,7 +385,7 @@ const LaunchpadDeployPage = (props: Props) => {
     if (!network || !collection) return
     setBannerImages(collections[network][collection].banner)
   }, [network, collection])
-
+  console.log(bannerImages)
   return (
     <Layout>
       <LaunchHeroSection />
@@ -424,13 +424,16 @@ const LaunchpadDeployPage = (props: Props) => {
           className="w-full px-4 grid items-center justify-between gap-3 grid-rows-1 overflow-y-hidden 
       grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 3xl:grid-cols-9 my-5"
         >
+          {/* href={"/launch/" + i} */}
           {[...Array(3)].map((_, i) => (
-            <a
+            <Link
               key={i}
-              href={bannerImages[i]?.nft}
               target="_blank"
               rel="noreferrer"
               className="cursor-pointer"
+              href={{
+                pathname: `/launch/` + i,
+              }}
             >
               <img
                 src={bannerImages[i]?.image}
@@ -438,7 +441,7 @@ const LaunchpadDeployPage = (props: Props) => {
                 className="rounded-xl "
                 style={{ borderRadius: '8px', padding: '5px' }}
               ></img>
-            </a>
+            </Link>
           ))}
           <a
             className="cursor-pointer hidden sm:block"

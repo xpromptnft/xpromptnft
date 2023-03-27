@@ -100,8 +100,8 @@ const Navbar = () => {
       justify="between"
     >
       <Chat
-        account="0x6430C47973FA053fc8F055e7935EC6C2271D5174" //user address
-        supportAddress="0xd9c1CCAcD4B8a745e191b62BA3fcaD87229CB26d" //support address
+        account="0x20613aBe93e4611Cf547b4395E4248c6129c8697" //user address
+        supportAddress="0x20613aBe93e4611Cf547b4395E4248c6129c8697  " //support address
       />
       <Box css={{ flex: 1 }}>
         <Flex align="center">
@@ -144,7 +144,7 @@ const Navbar = () => {
                   },
                 }}
               >
-                Collections
+                Explore
               </NavItem>
             </Link>
             {/* <Link href="/quests">
