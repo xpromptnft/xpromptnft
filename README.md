@@ -2,6 +2,8 @@
 
 Experience the future of AI-generated art with OpenAI, Stable Diffusion. Simply prompt the AI to generate unique images, and seamlessly mint them as NFTs in your browser
 
+## [Smart Contract Link](https://github.com/xpromptnft/NFT-factory)
+
 # Sponsors
 Below are the list of sponosrs for whome we implemented 
 
